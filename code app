@@ -1,0 +1,416 @@
+import streamlit as st
+import tensorflow as tf
+from PIL import Image
+import numpy as np
+import time
+import plotly.graph_objects as go
+import random
+
+# 1. Cấu hình giao diện không gian mở
+st.set_page_config(
+    page_title="Xem Bói Chỉ Tay Chuyên Sâu",
+    page_icon="🔮",
+    layout="wide"
+)
+
+# 2.n Giao diện 
+st.markdown("""
+    <style>
+    .stApp {
+        background: linear-gradient(135deg, #070210 0%, #120524 50%, #070210 100%) !important;
+        color: #e2d5f3 !important;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    }
+    .mystic-title {
+        text-align: center;
+        color: #ffdf00 !important;
+        text-shadow: 0 0 20px rgba(189, 0, 255, 0.8), 0 0 30px rgba(255, 223, 0, 0.3);
+        font-size: 2.8rem !important;
+        font-weight: 800;
+        margin-top: -30px;
+        margin-bottom: 5px;
+        letter-spacing: 2px;
+    }
+    .mystic-subtitle {
+        text-align: center;
+        color: #bca5f7 !important;
+        font-size: 1.15rem;
+        margin-bottom: 30px;
+        font-style: italic;
+    }
+    div.stButton > button:first-child {
+        background: linear-gradient(90deg, #5b21b6, #7c3aed) !important;
+        color: #ffffff !important;
+        border: 2px solid #fbbf24 !important;
+        border-radius: 30px !important;
+        padding: 16px 30px !important;
+        font-weight: 700 !important;
+        font-size: 20px !important;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        box-shadow: 0 0 15px rgba(124, 58, 237, 0.6) !important;
+        transition: all 0.4s ease-in-out !important;
+        width: 100%;
+    }
+    div.stButton > button:first-child:hover {
+        background: linear-gradient(90deg, #7c3aed, #9333ea) !important;
+        box-shadow: 0 0 25px #fbbf24, inset 0 0 10px rgba(255,255,255,0.5) !important;
+        transform: translateY(-3px);
+    }
+    .analysis-box {
+        background: rgba(255, 255, 255, 0.04);
+        border-left: 4px solid #7c3aed;
+        padding: 20px;
+        border-radius: 4px 16px 16px 4px;
+        margin-bottom: 15px;
+        font-size: 1.05rem;
+        line-height: 1.6;
+        backdrop-filter: blur(5px);
+    }
+    .final-result {
+        background: linear-gradient(145deg, rgba(23, 7, 43, 0.9), rgba(37, 11, 71, 0.9));
+        border: 2px solid #fbbf24;
+        padding: 28px;
+        border-radius: 16px;
+        box-shadow: 0 0 25px rgba(251, 191, 36, 0.25);
+        font-size: 1.25rem;
+        line-height: 1.7;
+    }
+    .advice-box {
+        background: rgba(5, 46, 22, 0.35);
+        border: 1px solid #10b981;
+        padding: 22px;
+        border-radius: 16px;
+        margin-top: 20px;
+        font-size: 1.1rem;
+        line-height: 1.6;
+    }
+    .lucky-box {
+        background: rgba(189, 0, 255, 0.1);
+        border: 1px dashed #bca5f7;
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        margin-top: 15px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Đọc mô hình
+@st.cache_resource
+def load_palm_model():
+    return tf.keras.models.load_model('model10.h5')
+
+try:
+    model = load_palm_model()
+except Exception as e:
+    st.warning("Hệ thống đang chạy ở chế độ mô phỏng UI (Không tìm thấy tệp model10.h5).")
+    model = None
+
+# --- SIDEBAR: CÁ NHÂN HÓA ---
+with st.sidebar:
+    st.markdown("<h2 style='text-align: center; color: #fbbf24;'>📜 Hồ Sơ Bản Mệnh</h2>", unsafe_allow_html=True)
+    user_name = st.text_input("Tên của bạn:", placeholder="VD: Nguyễn Văn A")
+    user_yob = st.number_input("Năm sinh:", min_value=1940, max_value=2026, value=2000)
+    user_gender = st.selectbox("Giới tính:", ["Nam", "Nữ", "Khác"])
+    st.markdown("---")
+    st.markdown("💡 Quy tắc cổ nhân: **Nam Tả - Nữ Hữu** (Nam quét tay trái, Nữ quét tay phải để có quẻ dịch chuẩn xác nhất).")
+
+# 3. TIÊU ĐỀ CHÍNH
+st.markdown('<div class="mystic-title">🔮 XEM BÓI CHỈ TAY CHUYÊN SÂU AI 🔮</div>', unsafe_allow_html=True)
+st.markdown('<div class="mystic-subtitle">Sự kết hợp hoàn hảo giữa Cổ học Phương Đông và Định lượng Sinh trắc học AI</div>', unsafe_allow_html=True)
+
+# 4. BỐ TRÍ GIAO DIỆN CHÍNH
+col1, col2 = st.columns([1, 1.2], gap="large")
+
+with col1:
+    st.write("📸 **Bước 1: Cung cấp hình ảnh lòng bàn tay**")
+    input_method = st.radio("Chọn phương thức nhập ảnh:", ["Tải ảnh từ thiết bị", "Chụp ảnh trực tiếp từ Camera"], horizontal=True)
+    
+    image_data = None
+    if input_method == "Chụp ảnh trực tiếp từ Camera":
+        image_data = st.camera_input("Căn chỉnh lòng bàn tay rõ nét giữa khung hình")
+    else:
+        image_data = st.file_uploader("Chọn file ảnh lòng bàn tay (JPG, JPEG, PNG)", type=['jpg', 'jpeg', 'png'])
+        if image_data is not None:
+            st.image(image_data, caption="Đã ghi nhận dữ liệu sinh trắc học", use_container_width=True)
+
+
+PALM_DETAILS = {
+    0: {
+        "name": "PHÚ QUÝ KHẢI HOÀN (ĐẠI CÁT)", 
+        "scores": [85, 90, 80, 98], 
+        "sinh_dao": "Đường Sinh Mệnh chạy dài mượt mà, nội lực bên trong dồi dào, khả năng phục hồi thể chất cực tốt.", 
+        "tri_dao": "Đường Trí Tuệ rẽ nhánh hướng lên, tư duy bén nhạy, có năng khiếu thiên bẩm về nhìn nhận cơ hội tài chính.", 
+        "tam_dao": "Đường Tình Duyên điềm tĩnh, ít chịu ảnh hưởng từ tác động ngoại cảnh, kiểm soát cảm xúc hoàn hảo.", 
+        "dinh_menh": "Đường Phú Quý sâu và đậm nét, hướng thẳng về các gò tài lộc nằm dưới ngón đeo nhẫn.", 
+        "ket_luan": "🎯 Lòng bàn tay hiển thị rõ nét tướng cách của người có duyên lớn với tiền tài. Công việc hanh thông, tài lộc tích lũy mạnh mẽ ở giai đoạn trung vận, hậu vận dư dả giàu sang.", 
+        "loi_khuyen": "💡 Bạn nên mạnh dạn nắm bắt các cơ hội đầu tư hoặc góp vốn kinh doanh riêng. Hãy mở rộng mạng lưới giao thiệp xã hội vì quý nhân của bạn nằm ở đó.", 
+        "color": "Vàng Kim Hoàng Gia", "item": "Tỳ Hưu Ngọc hoặc Đồng Điếu Thạch Anh"
+    },
+    1: {
+        "name": "NHÂN DUYÊN CÁT TƯỜNG", 
+        "scores": [80, 75, 96, 75], 
+        "sinh_dao": "Đường Sinh Mệnh cong tròn mềm mại, cuộc sống diễn ra tương đối bình ổn, ít gặp biến cố lớn.", 
+        "tri_dao": "Đường Trí Tuệ có xu hướng mượt mà, bạn sở hữu sự thấu cảm cao, rất dễ tạo thiện cảm với người đối diện.", 
+        "tam_dao": "Đường Tình Duyên sâu, kéo dài trọn vẹn chứng tỏ lòng chung thủy và khao khát xây dựng mái ấm bền vững.", 
+        "dinh_menh": "Đường Phú Quý phát triển ở mức bình hòa, tiền tài đủ đầy, cuộc sống an ổn tự tại.", 
+        "ket_luan": "🎯 Cuộc đời bạn được định sẵn sẽ đón nhận rất nhiều tình cảm, sự trân trọng và phước đức từ những người xung quanh. Đời sống gia đình êm ấm, hậu vận viên mãn bên người thân.", 
+        "loi_khuyen": "💡 Bạn rất hợp với các lĩnh vực cần sự kết nối con người, tâm lý học hoặc chăm sóc khách hàng. Về mặt tình cảm, hãy học cách chia sẻ nhiều hơn để tránh năng lượng u uất tích tụ.", 
+        "color": "Hồng Hồng Ngọc (Rose Quartz)", "item": "Vòng tay Hồ Ly hoặc Đá Thạch Anh Hồng"
+    },
+    2: {
+        "name": "THÔNG THÁI BẢN VỊ (TRÍ TUỆ ĐỈNH CAO)", 
+        "scores": [75, 98, 68, 85], 
+        "sinh_dao": "Đường Sinh Mệnh rõ nét, tác phong làm việc vô cùng kỷ luật, tinh thần luôn duy trì ở trạng thái vững vàng.", 
+        "tri_dao": "Đường Trí Tuệ kéo dài sắc nét như một đường kiếm, bộc lộ năng lực phân tích logic và phản biện đỉnh cao.", 
+        "tam_dao": "Đường Tình Duyên thiên về lý trí, mọi quyết định hệ trọng đều dựa trên sự cân nhắc cẩn thận.", 
+        "dinh_menh": "Đường Phú Quý hình thành vững chắc dựa trên chính năng lực nỗ lực tự thân của bản thân.", 
+        "ket_luan": "🎯 Bản mệnh là người có đầu óc nhạy bén bẩm sinh. Bạn luôn biết cách đưa ra giải pháp tối ưu nhất trong những tình huống bế tắc, rất thích hợp để đóng vai trò người dẫn dắt, quân sư.", 
+        "loi_khuyen": "💡 Hãy tập trung tích lũy chuyên môn sâu và chứng chỉ cao cấp. Bạn phù hợp với vai trò cố vấn, quản lý hoặc nghiên cứu. Đừng quên thư giãn tâm trí bằng nhạc không lời để tránh quá tải.", 
+        "color": "Xanh Sapphire", "item": "Quả Cầu Thạch Anh Tím hoặc Bút Ký Phong Thủy"
+    },
+    3: {
+        "name": "BÌNH AN ĐẠI PHÚC (TRƯỜNG THỌ VÔ CƯƠNG)", 
+        "scores": [99, 80, 85, 72], 
+        "sinh_dao": "Đường Sinh Mệnh dày dặn, liên tục không đứt gãy, biểu thị sinh khí dồi dào, khả năng tự chữa lành xuất sắc.", 
+        "tri_dao": "Đường Trí Tuệ điềm đạm, suy nghĩ chín chắn và luôn thấu đáo trước khi hành động.", 
+        "tam_dao": "Đường Tình Duyên bao dung, rộng lượng, sở hữu một đời sống tinh thần vô cùng nhẹ nhàng, tự tại.", 
+        "dinh_menh": "Đường Định Mệnh vững vàng, che chở cho bản mệnh vượt qua mọi sóng gió, tai ương.", 
+        "ket_luan": "🎯 Đây là quẻ bói mang lại phúc đức và hộ thân rất lớn. Lòng bàn tay mang tín hiệu mạnh mẽ của sự may mắn bình an, cuộc đời luôn chuyển hung thành cát, tai qua nạn khỏi, gặp dữ hóa lành.", 
+        "loi_khuyen": "💡 Bạn có một cuộc đời an yên, vì vậy hãy duy trì nhịp sống lành mạnh này. Tích cực tham gia các hoạt động thiện nguyện hoặc giúp đỡ người khác sẽ giúp bạn gia tăng thêm phước báu lâu dài.", 
+        "color": "Xanh Lá Cẩm Thạch", "item": "Mặt Dây Chuyền Phật Bản Mệnh hoặc Vòng Gỗ Trầm Hương"
+    },
+    4: {
+        "name": "VIỄN PHƯƠNG NAN HÀI (ĐẠI ĐƯỜNG XUẤT NGOẠI)", 
+        "scores": [82, 88, 75, 85], 
+        "sinh_dao": "Đường Sinh Mệnh có nhánh rẽ lớn hướng mạnh ra phía gò Nguyệt, báo hiệu cuộc sống gắn liền với sự dịch chuyển.", 
+        "tri_dao": "Đường Trí Tuệ khoáng đạt, yêu thích khám phá những điều mới mẻ, tư duy không bao giờ rập khuôn.", 
+        "tam_dao": "Đường Tình Duyên nồng nhiệt, yêu ghét rõ ràng, có xu hướng thích những người có tư tưởng cởi mở.", 
+        "dinh_menh": "Đường Định Mệnh bắt nguồn từ gò Nguyệt, tài lộc đến từ phương xa hoặc sự ủng hộ từ công chúng.", 
+        "ket_luan": "🎯 Bản mệnh có số xuất ngoại, định cư hoặc gặt hái thành công vang dội khi lập nghiệp nơi đất khách quê người. Càng đi xa quê quán, tiền tài và danh vọng của bạn càng rộng mở.", 
+        "loi_khuyen": "💡 Đừng ngần ngại đón nhận các cơ hội chuyển công tác, đi du học hoặc định cư xa. Hãy trau dồi thêm ngoại ngữ và kỹ năng toàn cầu để sẵn sàng bứt phá.", 
+        "color": "Trắng Ánh Kim", "item": "Vòng Tay Lu Thống hoặc Biểu Tượng Thuyền Buồm Phong Thủy"
+    },
+    5: {
+        "name": "KHỞI NGHỆP ĐOAN HÙNG (TỰ LỰC CÁNH SINH)", 
+        "scores": [88, 92, 70, 90], 
+        "sinh_dao": "Đường Sinh Mệnh mạnh mẽ, có nốt thắt nhẹ ở tiền vận nhưng vươn rất đậm về hậu vận.", 
+        "tri_dao": "Đường Trí Tuệ cực dài, hướng thẳng về gò Hỏa Tinh, biểu thị ý chí chiến đấu sắt đá, không lùi bước.", 
+        "tam_dao": "Đường Tình Duyên dứt khoát, độc lập, không thích dựa dẫm hay phụ thuộc cảm xúc.", 
+        "dinh_menh": "Đường Định Mệnh khởi sắc, đâm thẳng lên mạnh mẽ từ cột mốc sau 30 tuổi.", 
+        "ket_luan": "🎯 Bạn không có số dựa dẫm vào gia sản tổ tiên mà tự mình tay trắng kiến tạo cơ đồ. Giai đoạn tiền vận có thể trầy trật vất vả, nhưng từ trung vận sẽ nắm giữ quyền lực và sự nghiệp lớn.", 
+        "loi_khuyen": "💡 Kiên định với mục tiêu tối thượng đã chọn. Khi gặp thất bại ở giai đoạn đầu, hãy coi đó là chi phí học khôn. Quý nhân lớn nhất của bạn chính là sự lì lợm và kiên trì của bản thân.", 
+        "color": "Đỏ Rượu Vang", "item": "Nhẫn Tỳ Hưu Đeo Ngón Cái hoặc Thạch Anh Tóc Đỏ"
+    },
+    6: {
+        "name": "ĐIỀN TRẠCH TÍCH PHÚC (LỘC ĐẤT ĐAI)", 
+        "scores": [84, 82, 80, 95], 
+        "sinh_dao": "Đường Sinh Mệnh ôm trọn lấy gò Kim Tinh rất đầy đặn, căng mọng, biểu thị nền tảng gia đình vững chắc.", 
+        "tri_dao": "Đường Trí Tuệ thực tế, có đầu óc tính toán các con số và quản lý tài sản vô cùng chặt chẽ.", 
+        "tam_dao": "Đường Tình Duyên ổn định, hướng tới các giá trị hôn nhân vững bền và an toàn.", 
+        "dinh_menh": "Xuất hiện nhiều đường gạch dọc nhỏ, sâu, song song nhau nằm ngay dưới ngón út (Vân Tài Vận).", 
+        "ket_luan": "🎯 Bản mệnh có số mệnh sở hữu nhiều tài sản cố định như bất động sản, đất đai, nhà cửa hoặc được thừa kế gia sản. Tài sản của bạn tăng trưởng theo cấp số nhân dựa trên tư duy tích lũy.", 
+        "loi_khuyen": "💡 Hãy tập trung nguồn lực vào các kênh đầu tư dài hạn như bất động sản, nhà đất hoặc vàng. Tránh xa các trò chơi tài chính mạo hiểm mang tính chất đầu cơ ngắn hạn.", 
+        "color": "Nâu Đất Thổ", "item": "Vòng Tay Thạch Anh Tóc Vàng hoặc Ngọc Phỉ Thúy"
+    },
+    7: {
+        "name": "QUÝ NHÂN TRỢ MỆNH (THUẬN PHONG ĐẮC Ý)", 
+        "scores": [86, 85, 90, 82], 
+        "sinh_dao": "Bên cạnh đường Sinh Mệnh có một đường phụ chạy song song bên trong (Đường Hỏa Tinh / Đường Quý Nhân).", 
+        "tri_dao": "Đường Trí Tuệ linh hoạt, giỏi ứng biến và giao thiệp tốt trong mọi tình huống bất ngờ.", 
+        "tam_dao": "Đường Tình Duyên hướng lên, có nhiều nhánh nhỏ như những cánh hoa, cuộc sống tinh thần phong phú.", 
+        "dinh_menh": "Đường Phú Quý có nét nối tiếp, đan xen khéo léo giúp vượt qua các đoạn đứt gãy.", 
+        "ket_luan": "🎯 Bản mệnh đi đến đâu cũng có người yêu mến, nâng đỡ. Khi lâm vào nghịch cảnh hay bế tắc tưởng chừng không có lối thoát, luôn có quý nhân xuất hiện giải vây kịp thời.", 
+        "loi_khuyen": "💡 Hãy luôn duy trì thái độ sống khiêm nhường, tử tế và tích cực. Chính các mối quan hệ ngoại giao chân thành là chiếc chìa khóa vàng mở ra hũ bạc cho sự nghiệp của bạn.", 
+        "color": "Tím Thạch Anh", "item": "Mặt Dây Chuyền Hình Ve Sầu Phong Thủy hoặc Thạch Anh Tím"
+    },
+    8: {
+        "name": "NGHỆ THUẬT ĐỘC BẢN (SÁNG TẠO VÔ BIÊN)", 
+        "scores": [78, 96, 88, 78], 
+        "sinh_dao": "Đường Sinh Mệnh thanh mảnh, mềm mại nhưng tràn đầy năng lượng tươi mới.", 
+        "tri_dao": "Đường Trí Tuệ cong sâu xuống gò Nguyệt, biểu thị trí tưởng tượng phong phú và trực giác cực nhạy.", 
+        "tam_dao": "Đường Tình Duyên lãng mạn, nhạy cảm cao với cái đẹp, nghệ thuật và âm nhạc.", 
+        "dinh_menh": "Đường Định Mệnh thanh thoát, uốn lượn nhẹ nhàng không bị cản trở bởi các đường cắt ngang.", 
+        "ket_luan": "🎯 Bạn mang tâm hồn của một nghệ sĩ, nhà thiết kế hoặc chuyên gia sáng tạo độc lập. Bạn không kiếm tiền bằng lao động chân tay thô sơ mà bằng tư duy độc bản và những ý tưởng không ai trùng lặp.", 
+        "loi_khuyen": "💡 Hãy để tư duy được tự do bay bổng, tránh ép mình vào những công việc văn phòng gò bó, rập khuôn. Các ngành như truyền thông, nghệ thuật, viết lách, marketing là sàn diễn lớn của bạn.", 
+        "color": "Xanh Ngọc Lục Bảo", "item": "Tranh Phong Thủy Nhỏ hoặc Vòng Đá Lapis Lazuli"
+    },
+    9: {
+        "name": "ĐOAN HÙNG CHỮ NHẤT (BẢN MỆNH VĨ NHÂN)", 
+        "scores": [92, 95, 72, 94], 
+        "sinh_dao": "Đường Sinh Mệnh cực kỳ sâu, rõ ràng, biểu thị một thể trạng dẻo dai ít ai bì kịp.", 
+        "tri_dao": "Đường Trí Tuệ và đường Tình Duyên chập lại làm một, chạy thẳng cắt ngang lòng bàn tay (Chỉ tay chữ Nhất).", 
+        "tam_dao": "Đã hòa quyện trọn vẹn cùng đường Trí Tuệ, thể hiện sự tập trung cao độ và ý chí sắt đá.", 
+        "dinh_menh": "Đường Định Mệnh đâm thẳng đứng từ cổ tay lên tận ngón giữa vô cùng sắc nét.", 
+        "ket_luan": "🎯 Đây là tướng tay đặc biệt của những người có tầm ảnh hưởng lớn hoặc các nhà điều hành quyết liệt. Bạn sở hữu tài năng thiên bẩm, một khi đã quyết tâm làm gì sẽ làm đến cùng và thường đạt đỉnh cao.", 
+        "loi_khuyen": "💡 Hãy học cách tiết chế tính bướng bỉnh, độc đoán và cái tôi quá lớn của mình. Lắng nghe và tiếp thu ý kiến của cộng sự xung quanh sẽ giúp bạn tránh được những sai lầm chủ quan.", 
+        "color": "Đen Huyền Vũ", "item": "Nhẫn Đá Obsidian Đen hoặc Tượng Kỳ Lân Nhỏ"
+    },
+    10: {
+        "name": "ĐA TÀI ĐA NGHỆ (HẬU VẬN ĐẠI PHÁT)", 
+        "scores": [83, 91, 78, 86], 
+        "sinh_dao": "Đường Sinh Mệnh rộng, biểu thị lối sống tự do tự tại, không thích bị kìm kẹp.", 
+        "tri_dao": "Đường Trí Tuệ phân nhánh rõ ràng ở phần cuối trông như đuôi cá, thể hiện khả năng đa nhiệm xuất sắc.", 
+        "tam_dao": "Đường Tình Duyên hướng thẳng về gò Mộc Tinh dưới ngón trỏ, giàu lòng trắc ẩn, tốt bụng.", 
+        "dinh_menh": "Đường Định Mệnh lúc trẻ mờ nhạt nhưng càng về sau càng đậm nét và rõ ràng.", 
+        "ket_luan": "🎯 Ở giai đoạn tiền vận, bạn có thể thử sức ở nhiều lĩnh vực khác nhau nên tiền tài dễ tán, khó tụ. Tuy nhiên, từ cột mốc 35 tuổi trở đi, mọi trải nghiệm chín muồi giúp bạn bùng nổ tài lộc mạnh mẽ.", 
+        "loi_khuyen": "💡 Đừng nản lòng khi thấy bạn bè đồng trang lứa gặt hái thành công trước mình. Bản mệnh của bạn thuộc kiểu 'đóa hoa nở muộn' (đại khí vãn thành) - nở muộn nhưng vững chãi và rực rỡ nhất.", 
+        "color": "Xanh Tím Than", "item": "Vòng Tay Thạch Anh Khói hoặc Tháp Văn Xương"
+    },
+    11: {
+        "name": "THƯƠNG GIA THỜI ĐẠI (KIÊN NĂNG TỤ TÀI)", 
+        "scores": [87, 89, 74, 96], 
+        "sinh_dao": "Đường Sinh Mệnh khỏe khoắn, gò Kim Tinh nhô cao đầy đặn đầy năng lượng.", 
+        "tri_dao": "Đường Trí Tuệ ngắn nhưng rất sâu, hành động quyết đoán, thực tế và ghét những điều sáo rỗng.", 
+        "tam_dao": "Đường Tình Duyên thẳng, thực tế, nhìn nhận mối quan hệ dựa trên sự đồng hành lâu dài.", 
+        "dinh_menh": "Xuất hiện vân hình ô vuông hoặc hình chữ Điền nằm trên gò Thái Dương hoặc gò Mộc Tinh.", 
+        "ket_luan": "🎯 Bạn sở hữu bộ não nhạy bén bẩm sinh với dòng tiền và thị trường. Cực kỳ phù hợp làm chủ kinh doanh, buôn bán lớn hoặc quản lý tài chính. Dòng tiền luân chuyển qua tay bạn luôn sinh lời.", 
+        "loi_khuyen": "💡 Hãy tích lũy kinh nghiệm từ những mô hình kinh doanh nhỏ trước. Giữ vững chữ tín trong làm ăn chính là thỏi nam châm hút tài lộc trường tồn cho doanh nghiệp của bạn.", 
+        "color": "Vàng Hổ Phách", "item": "Chuỗi Vòng Tay Đá Mắt Hổ hoặc Thiềm Thừ (Cóc Ba Chân)"
+    },
+    12: {
+        "name": "THIÊN NHÃN TRỰC GIÁC (HUYỀN BÍ CHI MỆNH)", 
+        "scores": [80, 85, 92, 76], 
+        "sinh_dao": "Đường Sinh Mệnh chạy dài ổn định, ôm sát cổ tay.", 
+        "tri_dao": "Giữa đường Trí Tuệ và đường Tình Duyên xuất hiện một dấu chữ thập rất rõ nét (Vân Chữ X huyền bí).", 
+        "tam_dao": "Đường Tình Duyên sâu sắc, có thiên hướng tâm linh hoặc rất nhạy cảm với thế giới tinh thần.", 
+        "dinh_menh": "Đường Định Mệnh mảnh mai nhưng kéo dài xuyên suốt không đứt đoạn.", 
+        "ket_luan": "🎯 Bạn sở hữu giác quan thứ sáu cực kỳ nhạy bén. Bạn có khả năng nhìn thấu tâm can và 'đọc vị' người đối diện ngay từ lần đầu gặp mặt. Bạn cũng có duyên lớn với triết học, tâm lý, y học.", 
+        "loi_khuyen": "💡 Hãy luôn tin tưởng vào trực giác hoặc linh cảm của mình khi đứng trước các quyết định trọng đại. Dành thời gian thiền định hoặc hòa mình vào thiên nhiên sẽ giúp bạn thanh lọc năng lượng.", 
+        "color": "Xám Khói Huyền Bí", "item": "Mặt Dây Chuyền Đá Labradorite (Xà Cừ) hoặc Thạch Anh Trắng"
+    },
+    13: {
+        "name": "LÃNH ĐẠO BAO DUNG (QUYỀN LỰC TỰ THÂN)", 
+        "scores": [88, 94, 86, 90], 
+        "sinh_dao": "Đường Sinh Mệnh mượt mà, gò Mộc Tinh (dưới ngón trỏ) nhô cao và hồng hào.", 
+        "tri_dao": "Đường Trí Tuệ dài, chạy song song vững chãi với các đường nét khác.", 
+        "tam_dao": "Cuối đường Tình Duyên rẽ ba nhánh hướng lên gò Mộc Tinh tạo thành hình chiếc nĩa (Vân Lãnh Đạo / Vân Vua).", 
+        "dinh_menh": "Đường Định Mệnh thăng tiến đều đặn, không có đường cản trở.", 
+        "ket_luan": "🎯 Bạn mang tố chất của một nhà quản lý hoặc nhà lãnh đạo cấp cao trong tập thể. Lời nói của bạn có trọng lượng, có khả năng tập hợp, thu phục lòng người và truyền cảm hứng mạnh mẽ.", 
+        "loi_khuyen": "💡 Hãy luôn áp dụng triết lý lãnh đạo bằng sự thấu hiểu và bao dung (Đắc Nhân Tâm). Phong cách quản lý bằng cái tâm chân thành sẽ giúp bạn ngồi vững vàng trên đỉnh cao danh vọng.", 
+        "color": "Xanh Lục Bảo", "item": "Ấn Rồng Bằng Đá hoặc Nhẫn Ngọc Bích"
+    },
+    14: {
+        "name": "TỤ BẢO BỒN (THẦN TÀI GIỮ CỦA)", 
+        "scores": [85, 88, 80, 99], 
+        "sinh_dao": "Đường Sinh Mệnh dày dặn kết hợp chặt chẽ với các đường nét khác.", 
+        "tri_dao": "Đường Trí Tuệ cắt đường Sinh Mệnh và đường Định Mệnh tạo thành một hình tam giác khép kín lớn, vuông vắn ở chính giữa lòng bàn tay (Vân Kim Nguyên Bảo / Thỏi Vàng).", 
+        "tam_dao": "Đường Tình Duyên điềm đạm, giữ vững tâm lý.", 
+        "dinh_menh": "Đường Phú Quý tạo góc sắc nét, rõ ràng.", 
+        "ket_luan": "🎯 Đây là vân tay giữ của và tích lũy tài sản thuộc hàng top 1. Bản mệnh không chỉ có khả năng kiếm tiền giỏi mà còn cực kỳ xuất sắc trong việc giữ tiền, quản lý dòng tiền và khiến tiền đẻ ra tiền.", 
+        "loi_khuyen": "💡 Hãy đa dạng hóa các danh mục đầu tư tài sản để dòng tiền luôn vận động sinh lời. Nhớ tích cực làm việc thiện, phát tâm cúng dường để giữ vững cung tài lộc này không bị tiêu hao.", 
+        "color": "Vàng Đồng Cổ", "item": "Mô Hình Hũ Vàng Tài Lộc Thạch Anh hoặc Nhẫn Kim Tiền"
+    }
+}
+
+with col2:
+    if image_data is None:
+        st.info("👈 Vui lòng tải lên hoặc chụp ảnh lòng bàn tay ở cột bên trái để khởi tạo bói quẻ.")
+    else:
+        if st.button("🔮 BẮT ĐẦU GIẢI MÃ BẢN MỆNH BÀN"):
+            image = Image.open(image_data)
+            
+            # Hiệu ứng quét AI nâng cao
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            steps = [
+                "🔮 Đang trích xuất các điểm sinh trắc học trên lòng bàn tay...", 
+                "⚡ Đang đo lường biên độ góc của Đường Trí Tuệ...", 
+                "🪐 Đang tính toán mật độ tụ khí trên các gò bàn tay...", 
+                "📜 Hoàn tất giải mã! Đang thiết lập quẻ dịch..."
+            ]
+            for i, step in enumerate(steps):
+                progress_bar.progress((i + 1) * 25)
+                status_text.markdown(f"<p style='color:#a78bfa; font-style:italic;'>{step}</p>", unsafe_allow_html=True)
+                time.sleep(0.7)
+            
+            status_text.empty()
+            progress_bar.empty()
+
+            try:
+                
+                # Tạo số định mệnh từ Tên và Năm sinh
+                user_hash = sum(ord(char) for char in user_name) + int(user_yob)
+                
+                if model is not None:
+                    TARGET_SIZE = (224, 224) 
+                    img_resized = image.convert("RGB").resize(TARGET_SIZE)
+                    img_array = np.array(img_resized) / 255.0
+                    img_array = np.expand_dims(img_array, axis=0)
+                    predictions = model.predict(img_array)
+                    ai_index = int(np.argmax(predictions[0]))
+                    
+                    # Kết hợp AI ảnh + Số học hồ sơ người dùng
+                    mapped_index = (ai_index + user_hash) % len(PALM_DETAILS)
+                else:
+                    # Nếu chạy dự phòng: Sử dụng giá trị màu trung bình của ảnh + Số học hồ sơ
+                    img_pixel_sum = int(np.array(image).sum() % 100)
+                    mapped_index = (user_hash + img_pixel_sum) % len(PALM_DETAILS)
+                
+                data = PALM_DETAILS[mapped_index]
+                
+                # Giữ cố định con số may mắn cho riêng hồ sơ này bằng seed
+                random.seed(user_hash)
+                lucky_number = random.randint(10, 99)
+                # ------------------------------------------------------------------
+                
+                # Hiển thị Tên người xem cá nhân hóa
+                name_display = user_name if user_name else "Ẩn Danh Thí Chủ"
+                st.markdown(f"<h3 style='color:#ffdf00; text-align:center; letter-spacing: 1px;'>📜 MỆNH BÀN SỐ HỌC: {name_display.upper()} ({user_yob})</h3>", unsafe_allow_html=True)
+                
+                # --- VẼ BIỂU ĐỒ MẠNG NHỆN ĐA CHIỀU ---
+                st.markdown("#### 📊 Biểu Đồ Định Lượng Năng Lượng Sinh Trắc Học:")
+                categories = ['Sinh Khí (Sức Khỏe)', 'Trí Tuệ (Công Danh)', 'Tình Duyên (Gia Đạo)', 'Phú Quý (Tài Vận)']
+                scores = data["scores"]
+                
+                fig = go.Figure()
+                fig.add_trace(go.Scatterpolar(
+                    r=scores + [scores[0]], 
+                    theta=categories + [categories[0]],
+                    fill='toself',
+                    fillcolor='rgba(139, 92, 246, 0.35)',
+                    line=dict(color='#ffdf00', width=2.5),
+                    name='Mức Độ Năng Lượng'
+                ))
+                fig.update_layout(
+                    polar=dict(
+                        radialaxis=dict(visible=True, range=[0, 100], color="#bca5f7", gridcolor="rgba(255,255,255,0.08)"),
+                        bgcolor="rgba(0,0,0,0)"
+                    ),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    margin=dict(l=30, r=30, t=20, b=20),
+                    height=320
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+                # --- HIỂN THỊ KẾT QUẢ QUẺ DỊCH CHÍNH ---
+                st.markdown(f'<div class="final-result">{data["ket_luan"]}</div>', unsafe_allow_html=True)
+                
+                # --- CHI TIẾT TỪNG ĐƯỜNG NÉT ---
+                with st.expander("🔍 Xem luận giải chi tiết cấu trúc 4 đường chỉ tay chính", expanded=False):
+                    st.markdown(f'<div class="analysis-box"><span style="color: #10b981; font-weight: bold;">🟢 1. Đường Sinh Mệnh:</span><br>{data["sinh_dao"]}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="analysis-box"><span style="color: #a855f7; font-weight: bold;">🔵 2. Đường Trí Tuệ:</span><br>{data["tri_dao"]}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="analysis-box"><span style="color: #ec4899; font-weight: bold;">🔴 3. Đường Tình Duyên:</span><br>{data["tam_dao"]}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="analysis-box"><span style="color: #fbbf24; font-weight: bold;">🟡 4. Đường Phú Quý:</span><br>{data["dinh_menh"]}</div>', unsafe_allow_html=True)
+
+                # Cải vận lời khuyên
+                st.markdown(f'<div class="advice-box">{data["loi_khuyen"]}</div>', unsafe_allow_html=True)
+                
+                # --- KHUNG TÍN VẬT MAY MẮN ---
+                st.markdown(f"""
+                <div class="lucky-box">
+                    ✨ <b>VẬN KHÍ PHONG THỦY TRỢ MỆNH:</b><br>
+                    🎨 Màu sắc vượng khí: <span style="color:#ffdf00; font-weight:bold;">{data["color"]}</span> | 🎲 Con số may mắn: <span style="color:#ffdf00; font-weight:bold;">{lucky_number}</span><br>
+                    💎 Vật phẩm thu hút cát khí: <span style="color:#10b981; font-weight:bold;">{data["item"]}</span>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.balloons()
+                
+            except Exception as e:
+                st.error(f"Hệ thống gặp lỗi trong quá trình phân tích hình ảnh: {e}")
+
+st.markdown("<br><br><br><hr style='border-color: rgba(255,255,255,0.08);'><p style='text-align: center; color: #4c1d95; font-size: 0.85rem;'>— Vạn sự tùy tâm, thiện căn ở tại lòng người —</p>", unsafe_allow_html=True)
